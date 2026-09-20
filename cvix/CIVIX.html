@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CIVIX — AI Civic Resolver</title>
+
+  <!-- Tailwind (CDN, sufficient for demo) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink:    { 900: '#0B1220', 800: '#111827', 700: '#1F2937', 600: '#374151', 500: '#4B5563', 400: '#6B7280', 300: '#9CA3AF', 200: '#E5E7EB', 100: '#F3F4F6', 50: '#F9FAFB' },
+            brand:  { 50:'#EFF6FF', 100:'#DBEAFE', 200:'#BFDBFE', 300:'#93C5FD', 400:'#60A5FA', 500:'#3B82F6', 600:'#2563EB', 700:'#1D4ED8', 800:'#1E40AF', 900:'#1E3A8A' },
+            sev:    { crit: '#DC2626', high: '#EA580C', med: '#D97706', low: '#059669' },
+            surface:{ base: '#FAFBFC', card: '#FFFFFF', hover: '#F5F7FA', border: '#E6E8EC' },
+          },
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+          },
+          boxShadow: {
+            card: '0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.06)',
+            cardHover: '0 4px 12px rgba(16,24,40,0.08)',
+            pop: '0 10px 30px rgba(16,24,40,0.10)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- React + Babel -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <!-- Recharts (needs prop-types) -->
+  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+
+  <!-- Lucide icons -->
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+
+  <style>
+    html, body, #root { height: 100%; }
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      background: #FAFBFC;
+      color: #0B1220;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-thumb { background: #D6DAE0; border-radius: 8px; }
+    ::-webkit-scrollbar-thumb:hover { background: #B9BFC7; }
+    ::-webkit-scrollbar-track { background: transparent; }
+
+    /* Leaflet tweaks */
+    .leaflet-container { font: inherit; }
+    .civix-marker {
+      display: flex; align-items: center; justify-content: center;
+      width: 26px; height: 26px; border-radius: 999px;
+      color: white; font-weight: 700; font-size: 11px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+      border: 2px solid white;
+    }
+    .civix-marker.crit { background: #DC2626; }
+    .civix-marker.high { background: #EA580C; }
+    .civix-marker.med  { background: #D97706; }
+    .civix-marker.low  { background: #059669; }
+
+    .civix-hotspot {
+      background: rgba(220,38,38,0.15);
+      border: 1.5px solid rgba(220,38,38,0.4);
+    }
+
+    /* Chart tooltip default polish */
+    .recharts-default-tooltip {
+      border-radius: 10px !important;
+      border: 1px solid #E6E8EC !important;
+      box-shadow: 0 10px 30px rgba(16,24,40,0.10) !important;
+    }
+
+    /* Timeline */
+    .tl-dot { width: 10px; height: 10px; border-radius: 999px; }
+
+    /* Skeleton */
+    @keyframes pulseBg { 0%, 100% { opacity: 1 } 50% { opacity: .55 } }
+    .skeleton { background: #EEF1F5; border-radius: 8px; animation: pulseBg 1.4s ease-in-out infinite; }
+
+    /* Animations */
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .fade-in-up { animation: fadeInUp .35s ease-out both; }
+    @keyframes popIn { 0% { transform: scale(.6); opacity: 0 } 60% { transform: scale(1.05); opacity: 1 } 100% { transform: scale(1); opacity: 1 } }
+    .pop-in { animation: popIn .5s cubic-bezier(.2,.9,.3,1.2) both; }
+
+    /* Selected marker ring */
+    .civix-marker.selected { outline: 3px solid rgba(37,99,235,0.35); outline-offset: 2px; }
+
+    /* Hide leaflet attribution on tiny screens */
+    @media (max-width: 480px) { .leaflet-control-attribution { font-size: 9px !important; } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Icons helper -->
+  <script>
+    // Simple SVG icon renderer that uses lucide static SVG strings.
+    // Usage: <Icon name="Home" size={16} />
+    window.LucideIcons = window.lucide && window.lucide.icons ? window.lucide.icons : {};
+  </script>
+
+  <!-- App scripts, in order -->
+  <script type="text/babel" src="src/data.jsx"></script>
+  <script type="text/babel" src="src/api.jsx"></script>
+  <script type="text/babel" src="src/ui.jsx"></script>
+  <script type="text/babel" src="src/charts.jsx"></script>
+  <script type="text/babel" src="src/layout.jsx"></script>
+  <script type="text/babel" src="src/pages_public.jsx"></script>
+  <script type="text/babel" src="src/pages_reports.jsx"></script>
+  <script type="text/babel" src="src/pages_admin.jsx"></script>
+  <script type="text/babel" src="src/pages_map.jsx"></script>
+  <script type="text/babel" src="src/pages_analytics.jsx"></script>
+  <script type="text/babel" src="src/pages_departments.jsx"></script>
+  <script type="text/babel" src="src/pages_settings.jsx"></script>
+  <script type="text/babel" src="src/app.jsx"></script>
+</body>
+</html>
